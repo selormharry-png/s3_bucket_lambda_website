@@ -1,0 +1,10 @@
+# Copy to terraform.tfvars (git-ignored) to override defaults.
+# Every input is documented in variables.tf; these are the common ones.
+aws_region   = "eu-central-1"
+project_name = "mariam-va"
+environment  = "prod"
+owner        = "mariam-juma-hamis"
+
+# cloudfront_price_class       = "PriceClass_100"
+# dynamodb_deletion_protection = true   # set false before terraform destroy
+# lambda_log_retention_days    = 14

@@ -1,0 +1,5 @@
+# Copy to backend.hcl (git-ignored) and run: terraform init -backend-config=backend.hcl
+# The state-bootstrap output "backend_config" prints these values for you.
+bucket = "<state_bucket_name output from state-bootstrap>"
+key    = "website/terraform.tfstate"
+region = "eu-central-1"

@@ -1,0 +1,112 @@
+name: Deploy website
+
+on:
+  pull_request:
+    paths-ignore: ["README.md", "state-bootstrap/**"]
+  push:
+    branches: [main]
+    paths-ignore: ["README.md", "state-bootstrap/**"]
+  workflow_dispatch:
+
+# Required for AWS OIDC (no long-lived keys)
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
+
+# Configure these under Settings -> Secrets and variables -> Actions -> Variables:
+#   AWS_ROLE_ARN       github_actions_role_arn output of state-bootstrap
+#   AWS_REGION         region to deploy to (same as state-bootstrap)
+#   TF_STATE_BUCKET    state_bucket_name output of state-bootstrap
+#   TF_STATE_KEY       state object key (state-bootstrap var.state_key)
+#   TERRAFORM_VERSION  Terraform version constraint, e.g. ~> 1.13
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+  TF_BACKEND_ARGS: >-
+    -backend-config=bucket=${{ vars.TF_STATE_BUCKET }}
+    -backend-config=key=${{ vars.TF_STATE_KEY }}
+    -backend-config=region=${{ vars.AWS_REGION }}
+
+jobs:
+  plan:
+    name: Validate & plan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Format check
+        run: terraform fmt -check -recursive
+
+      - name: Init
+        run: terraform init $TF_BACKEND_ARGS
+
+      - name: Validate
+        run: terraform validate
+
+      - name: Plan
+        run: terraform plan -out=tfplan
+
+      - name: Upload plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          # build/ holds the Lambda zip the saved plan points at
+          path: |
+            tfplan
+            build/
+          retention-days: 3
+
+  apply:
+    name: Apply & publish site
+    needs: plan
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    # Create an environment called "production" in GitHub and add yourself as a
+    # required reviewer to get a manual approval gate before every apply.
+    # (Must match github_environment in state-bootstrap.)
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+
+      - name: Init
+        run: terraform init $TF_BACKEND_ARGS
+
+      - name: Apply
+        run: terraform apply tfplan
+
+      - name: Invalidate CloudFront cache
+        run: |
+          DIST_ID=$(terraform output -raw cloudfront_distribution_id)
+          aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
+
+      - name: Site URL
+        run: echo "Deployed to $(terraform output -raw website_url)" >> "$GITHUB_STEP_SUMMARY"

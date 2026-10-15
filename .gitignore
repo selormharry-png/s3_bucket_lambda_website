@@ -1,0 +1,11 @@
+build/
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+!terraform.tfvars.example
+backend.hcl
+tfplan
+*.tfplan
+.terraform.lock.hcl.bak

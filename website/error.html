@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Page Not Found | Mariam Juma Hamis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Montserrat:wght@300;400;500;600&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Absolute paths so this page renders correctly from any missing URL -->
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="/" aria-label="Mariam Juma Hamis - Virtual Assistant, home">
+        <span class="script">Mariam</span>
+        <span class="sub">Virtual Assistant</span>
+        <span class="legal">MARIAM JUMA HAMIS</span>
+      </a>
+      <nav aria-label="Main navigation">
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/#services">Services</a></li>
+          <li><a href="/#portfolio">Portfolio</a></li>
+          <li><a href="/#contact">Contact</a></li>
+        </ul>
+      </nav>
+      <a class="btn" href="/#contact">Get in Touch</a>
+    </div>
+  </header>
+
+  <main class="error-wrap">
+    <div class="container">
+      <div class="error-code">404</div>
+      <h1>Oops &mdash; this page can't be found.</h1>
+      <p style="max-width:520px;margin:1rem auto 1.8rem;color:var(--muted);">The page you're looking for may have been moved, renamed, or may never have existed. Let's get you back to something useful.</p>
+      <a class="btn" href="/">Back to Home</a>
+      <a class="btn outline" href="/about" style="margin-left:8px;">About Mariam</a>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div>&copy; <span id="year">2026</span> Mariam Juma Hamis. All rights reserved.</div>
+      <div>
+        <a href="/">Home</a>
+        <a href="/about">About</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</body>
+</html>

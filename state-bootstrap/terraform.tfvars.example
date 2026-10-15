@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars (git-ignored) and fill in.
+github_repo  = "<owner>/<repo>"
+aws_region   = "eu-central-1"
+project_name = "mariam-va"
+
+# Set to false if the account already has the GitHub OIDC provider.
+create_github_oidc_provider = true
