@@ -59,6 +59,7 @@ Local run: `terraform init -backend-config=backend.hcl && terraform plan && terr
 
 ## Things to know
 
+- **"Not authorized to perform sts:AssumeRoleWithWebIdentity" in CI:** the repo probably uses GitHub's immutable OIDC subject claims. Run `gh api repos/<owner>/<repo>/actions/oidc/customization/sub --jq .sub_claim_prefix`, put the result in `github_subject_prefix` in `state-bootstrap/terraform.tfvars`, and re-apply the bootstrap.
 - **Approving reviews:** new reviews are stored with `approved = false`. In DynamoDB → Explore items, edit the item and add/set `approved` as a **Boolean** `true`.
 - **Old us-east-1 resources** from the console build are not touched. Delete them manually (and the old CloudFront distribution) once this stack works. The old Function URL in the HTML has been replaced with `/config.js`.
 - **Deleting the stack:** set `dynamodb_deletion_protection = false`, apply, then destroy. Empty the site bucket first if needed (versioned).

@@ -14,13 +14,14 @@ locals {
   state_bucket_name = "${var.project_name}-tfstate-${local.account_id}"
   deploy_role_name  = coalesce(var.deploy_role_name, "${var.project_name}-github-deploy")
 
-  github_oidc_url = "https://${var.github_oidc_host}"
+  github_oidc_url       = "https://${var.github_oidc_host}"
+  github_subject_prefix = coalesce(var.github_subject_prefix, "repo:${var.github_repo}")
 
   # Pull-request runs (plan), branch runs (plan) and environment runs (apply)
   github_subjects = [
-    "repo:${var.github_repo}:pull_request",
-    "repo:${var.github_repo}:ref:refs/heads/${var.github_branch}",
-    "repo:${var.github_repo}:environment:${var.github_environment}",
+    "${local.github_subject_prefix}:pull_request",
+    "${local.github_subject_prefix}:ref:refs/heads/${var.github_branch}",
+    "${local.github_subject_prefix}:environment:${var.github_environment}",
   ]
 }
 

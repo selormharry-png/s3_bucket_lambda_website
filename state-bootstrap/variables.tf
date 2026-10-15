@@ -47,6 +47,16 @@ variable "github_repo" {
   }
 }
 
+variable "github_subject_prefix" {
+  description = <<-EOT
+    Prefix of the OIDC "sub" claim GitHub sends for this repo. Defaults to repo:<github_repo>.
+    Repos using immutable subject claims need repo:<owner>@<owner_id>/<repo>@<repo_id>; get it with:
+      gh api repos/<owner>/<repo>/actions/oidc/customization/sub --jq .sub_claim_prefix
+  EOT
+  type        = string
+  default     = null
+}
+
 variable "github_branch" {
   description = "Branch whose push runs may plan against the real state."
   type        = string
