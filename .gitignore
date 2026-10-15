@@ -9,4 +9,3 @@ backend.hcl
 tfplan
 *.tfplan
 .terraform.lock.hcl.bak
-.terraform.lock.hcl
