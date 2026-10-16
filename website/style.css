@@ -139,6 +139,12 @@ section { padding: 70px 0; }
 
 /* Contact / CTA */
 .cta { background: var(--mauve); color: #fff; text-align: center; padding: 56px 0; }
+/* Photo background; anchored to the top so the button printed at the bottom of the image stays out of view */
+.cta.photo-bg {
+  padding: 72px 0;
+  background: url("/images/consultation-desk.jpg") center top / cover no-repeat, var(--mauve);
+}
+.cta.photo-bg::before { background: rgba(110, 58, 95, 0.6); }
 .cta .script { font-family: "Great Vibes", cursive; font-size: 2.8rem; }
 .cta p { letter-spacing: 0.18em; text-transform: uppercase; font-size: 0.78rem; margin: 0.4rem 0 1.4rem; }
 .contact-box { background: var(--white); border-radius: 20px; padding: 34px; box-shadow: var(--shadow); max-width: 640px; margin: 0 auto; text-align: center; }
@@ -176,6 +182,8 @@ footer.site-footer { background: var(--mauve-dark); color: #f4e6ef; padding: 30p
   nav ul { justify-content: center; gap: 16px; }
   .traits { grid-template-columns: 1fr; }
   .photo-stack { max-width: 460px; margin: 0 auto; }
+  /* On narrow screens "cover" would show the full image height; oversize it so the bottom stays cropped */
+  .cta.photo-bg { background-size: auto 135%; background-position: 65% top; }
 }
 @media (max-width: 520px) {
   .about-photos { grid-template-columns: 1fr; }
