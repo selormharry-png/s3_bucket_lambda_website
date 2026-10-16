@@ -111,6 +111,12 @@ section { padding: 70px 0; }
 .tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 14px; margin-top: 1.4rem; }
 .tool { background: var(--white); border-radius: 12px; padding: 14px 10px; text-align: center; font-size: 0.82rem; box-shadow: 0 3px 10px rgba(110, 58, 95, 0.07); }
 .tool span { display: block; font-size: 1.5rem; margin-bottom: 4px; }
+
+/* Full-width photos (workspace, client meeting) */
+.wide-photo { max-width: 900px; margin: 48px auto; }
+#enquiry .wide-photo { margin-top: 0; }
+.wide-photo img { display: block; width: 100%; height: auto; border-radius: 18px; box-shadow: var(--shadow); border: 6px solid var(--white); }
+.wide-photo figcaption { text-align: center; font-size: 0.82rem; color: var(--muted); margin-top: 10px; }
 .checklist { list-style: none; margin: 1.2rem 0 1.6rem; }
 .checklist li { padding: 6px 0 6px 30px; position: relative; font-size: 0.95rem; }
 .checklist li::before { content: "✓"; position: absolute; left: 0; color: var(--mauve); font-weight: 700; }
