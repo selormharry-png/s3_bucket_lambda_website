@@ -6,5 +6,5 @@ environment  = "prod"
 owner        = "mariam-juma-hamis"
 
 # cloudfront_price_class       = "PriceClass_100"
-# dynamodb_deletion_protection = true   # set false before terraform destroy
+# reviews_bucket_force_destroy = false  # set true before terraform destroy
 # lambda_log_retention_days    = 14

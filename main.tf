@@ -2,7 +2,7 @@
 # Mariam Juma Hamis - Virtual Assistant website
 #
 #   Browser -> CloudFront (OAC) -> private S3 bucket   (static site)
-#   Browser -> Lambda Function URL -> DynamoDB          (review form API)
+#   Browser -> Lambda Function URL -> private S3 bucket (review form API)
 #
 # Everything here replaces what was originally clicked together in the console.
 ###############################################################################
@@ -15,9 +15,10 @@ locals {
   account_id = data.aws_caller_identity.current.account_id
 
   # Must stay in sync with the "${project_name}-site-*" scope of the deploy role in state-bootstrap.
-  site_bucket_name = "${var.project_name}-site-${local.account_id}-${var.aws_region}"
-  site_origin_id   = "s3-${var.project_name}-site"
-  site_dir         = "${path.module}/${var.website_dir}"
+  site_bucket_name    = "${var.project_name}-site-${local.account_id}-${var.aws_region}"
+  reviews_bucket_name = "${var.project_name}-site-reviews-${local.account_id}-${var.aws_region}"
+  site_origin_id      = "s3-${var.project_name}-site"
+  site_dir            = "${path.module}/${var.website_dir}"
 
   # file path -> lowercase extension, computed once and reused below
   site_files = {
@@ -29,19 +30,9 @@ locals {
 
   lambda_basic_execution_policy_arn = "arn:${data.aws_partition.current.partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 
-  # DynamoDB auto scaling: one target + policy per dimension
-  dynamodb_scaling = {
-    read = {
-      dimension    = "dynamodb:table:ReadCapacityUnits"
-      metric       = "DynamoDBReadCapacityUtilization"
-      min_capacity = var.dynamodb_read_capacity
-    }
-    write = {
-      dimension    = "dynamodb:table:WriteCapacityUnits"
-      metric       = "DynamoDBWriteCapacityUtilization"
-      min_capacity = var.dynamodb_write_capacity
-    }
-  }
+  # New reviews land under pending/; moving an object to approved/ publishes it.
+  reviews_pending_prefix  = "pending/"
+  reviews_approved_prefix = "approved/"
 }
 
 ###############################################################################
@@ -236,76 +227,79 @@ resource "aws_s3_object" "config_js" {
 }
 
 ###############################################################################
-# 4. DynamoDB table for reviews
-#    Provisioned capacity with auto scaling, AWS-owned key encryption (the
-#    default), no secondary indexes.
+# 4. S3 bucket for reviews (private - only the Lambda reads/writes it)
+#    One JSON object per review: pending/<ts>-<uuid>.json until approved,
+#    then moved to approved/.
 ###############################################################################
-resource "aws_dynamodb_table" "reviews" {
-  name                        = var.reviews_table_name
-  billing_mode                = "PROVISIONED"
-  read_capacity               = var.dynamodb_read_capacity
-  write_capacity              = var.dynamodb_write_capacity
-  hash_key                    = "id"
-  deletion_protection_enabled = var.dynamodb_deletion_protection
+resource "aws_s3_bucket" "reviews" {
+  bucket        = local.reviews_bucket_name
+  force_destroy = var.reviews_bucket_force_destroy
+}
 
-  attribute {
-    name = "id"
-    type = "S"
-  }
+resource "aws_s3_bucket_public_access_block" "reviews" {
+  bucket                  = aws_s3_bucket.reviews.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
 
-  # Auto scaling changes capacity outside Terraform; don't fight it.
-  lifecycle {
-    ignore_changes = [read_capacity, write_capacity]
+resource "aws_s3_bucket_ownership_controls" "reviews" {
+  bucket = aws_s3_bucket.reviews.id
+
+  rule {
+    object_ownership = "BucketOwnerEnforced"
   }
 }
 
-resource "aws_appautoscaling_target" "reviews" {
-  for_each = local.dynamodb_scaling
+resource "aws_s3_bucket_server_side_encryption_configuration" "reviews" {
+  bucket = aws_s3_bucket.reviews.id
 
-  service_namespace  = "dynamodb"
-  resource_id        = "table/${aws_dynamodb_table.reviews.name}"
-  scalable_dimension = each.value.dimension
-  min_capacity       = each.value.min_capacity
-  max_capacity       = var.dynamodb_autoscaling_max_capacity
-}
-
-resource "aws_appautoscaling_policy" "reviews" {
-  for_each = local.dynamodb_scaling
-
-  name               = "${var.reviews_table_name}-${each.key}-scaling"
-  policy_type        = "TargetTrackingScaling"
-  service_namespace  = aws_appautoscaling_target.reviews[each.key].service_namespace
-  resource_id        = aws_appautoscaling_target.reviews[each.key].resource_id
-  scalable_dimension = aws_appautoscaling_target.reviews[each.key].scalable_dimension
-
-  target_tracking_scaling_policy_configuration {
-    target_value = var.dynamodb_autoscaling_target_utilization
-
-    predefined_metric_specification {
-      predefined_metric_type = each.value.metric
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
     }
   }
 }
 
-# Keeps existing state when upgrading from the old per-dimension resources.
-moved {
-  from = aws_appautoscaling_target.reviews_read
-  to   = aws_appautoscaling_target.reviews["read"]
+# Versioning keeps a copy of anything deleted or overwritten by mistake.
+resource "aws_s3_bucket_versioning" "reviews" {
+  bucket = aws_s3_bucket.reviews.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
 }
 
-moved {
-  from = aws_appautoscaling_target.reviews_write
-  to   = aws_appautoscaling_target.reviews["write"]
+resource "aws_s3_bucket_lifecycle_configuration" "reviews" {
+  bucket = aws_s3_bucket.reviews.id
+
+  rule {
+    id     = "expire-old-versions"
+    status = "Enabled"
+
+    filter {}
+
+    noncurrent_version_expiration {
+      noncurrent_days = var.reviews_noncurrent_version_retention_days
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = var.abort_incomplete_multipart_upload_days
+    }
+  }
+
+  depends_on = [aws_s3_bucket_versioning.reviews]
 }
 
-moved {
-  from = aws_appautoscaling_policy.reviews_read
-  to   = aws_appautoscaling_policy.reviews["read"]
-}
+# The old DynamoDB table (deletion protection on) is dropped from state but
+# left in AWS so existing reviews can be copied over. Delete it by hand later.
+removed {
+  from = aws_dynamodb_table.reviews
 
-moved {
-  from = aws_appautoscaling_policy.reviews_write
-  to   = aws_appautoscaling_policy.reviews["write"]
+  lifecycle {
+    destroy = false
+  }
 }
 
 ###############################################################################
@@ -341,19 +335,40 @@ resource "aws_iam_role_policy_attachment" "review_api_logs" {
   policy_arn = local.lambda_basic_execution_policy_arn
 }
 
-# Least privilege: only PutItem + Scan, only on the reviews table
-data "aws_iam_policy_document" "review_api_dynamodb" {
+# Least privilege: write to pending/, read and list approved/ only
+data "aws_iam_policy_document" "review_api_s3" {
   statement {
+    sid       = "WritePending"
     effect    = "Allow"
-    actions   = ["dynamodb:PutItem", "dynamodb:Scan"]
-    resources = [aws_dynamodb_table.reviews.arn]
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.reviews.arn}/${local.reviews_pending_prefix}*"]
+  }
+
+  statement {
+    sid       = "ReadApproved"
+    effect    = "Allow"
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.reviews.arn}/${local.reviews_approved_prefix}*"]
+  }
+
+  statement {
+    sid       = "ListApproved"
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.reviews.arn]
+
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values   = ["${local.reviews_approved_prefix}*"]
+    }
   }
 }
 
-resource "aws_iam_role_policy" "review_api_dynamodb" {
-  name   = "${var.reviews_table_name}-table-access"
+resource "aws_iam_role_policy" "review_api_s3" {
+  name   = "${var.lambda_function_name}-reviews-bucket-access"
   role   = aws_iam_role.review_api.id
-  policy = data.aws_iam_policy_document.review_api_dynamodb.json
+  policy = data.aws_iam_policy_document.review_api_s3.json
 }
 
 resource "aws_cloudwatch_log_group" "review_api" {
@@ -374,14 +389,16 @@ resource "aws_lambda_function" "review_api" {
 
   environment {
     variables = {
-      TABLE_NAME = aws_dynamodb_table.reviews.name
+      REVIEWS_BUCKET  = aws_s3_bucket.reviews.id
+      PENDING_PREFIX  = local.reviews_pending_prefix
+      APPROVED_PREFIX = local.reviews_approved_prefix
     }
   }
 
   depends_on = [
     aws_cloudwatch_log_group.review_api,
     aws_iam_role_policy_attachment.review_api_logs,
-    aws_iam_role_policy.review_api_dynamodb,
+    aws_iam_role_policy.review_api_s3,
   ]
 }
 

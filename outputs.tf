@@ -18,9 +18,9 @@ output "review_api_url" {
   value       = aws_lambda_function_url.review_api.function_url
 }
 
-output "reviews_table_name" {
-  description = "DynamoDB table holding reviews. Set approved=true (Boolean) on an item to publish it."
-  value       = aws_dynamodb_table.reviews.name
+output "reviews_bucket_name" {
+  description = "S3 bucket holding reviews. Move an object from pending/ to approved/ to publish it."
+  value       = aws_s3_bucket.reviews.id
 }
 
 output "aws_region" {

@@ -2,7 +2,7 @@
 # General
 ###############################################################################
 variable "aws_region" {
-  description = "AWS region for all regional resources (S3, DynamoDB, Lambda)."
+  description = "AWS region for all regional resources (S3, Lambda)."
   type        = string
   default     = "eu-central-1"
 }
@@ -169,47 +169,18 @@ variable "cloudfront_geo_restriction_locations" {
 }
 
 ###############################################################################
-# DynamoDB
+# Reviews bucket
 ###############################################################################
-variable "reviews_table_name" {
-  description = "Name of the DynamoDB table that stores reviews."
-  type        = string
-  default     = "reviews"
-}
-
-variable "dynamodb_read_capacity" {
-  description = "Provisioned read capacity units, also the auto scaling minimum (5 keeps you inside the free tier)."
-  type        = number
-  default     = 5
-}
-
-variable "dynamodb_write_capacity" {
-  description = "Provisioned write capacity units, also the auto scaling minimum (5 keeps you inside the free tier)."
-  type        = number
-  default     = 5
-}
-
-variable "dynamodb_autoscaling_max_capacity" {
-  description = "Upper limit for DynamoDB auto scaling (read and write)."
-  type        = number
-  default     = 10
-}
-
-variable "dynamodb_autoscaling_target_utilization" {
-  description = "Target capacity utilisation (percent) for DynamoDB auto scaling."
-  type        = number
-  default     = 70
-
-  validation {
-    condition     = var.dynamodb_autoscaling_target_utilization >= 20 && var.dynamodb_autoscaling_target_utilization <= 90
-    error_message = "DynamoDB target utilisation must be between 20 and 90."
-  }
-}
-
-variable "dynamodb_deletion_protection" {
-  description = "Protect the reviews table from accidental deletion. Set to false before running terraform destroy."
+variable "reviews_bucket_force_destroy" {
+  description = "Allow terraform destroy to delete the reviews bucket even when it still holds reviews. Keep false unless you are tearing the stack down."
   type        = bool
-  default     = true
+  default     = false
+}
+
+variable "reviews_noncurrent_version_retention_days" {
+  description = "Days to keep old (noncurrent) versions of review objects, e.g. after a review is moved or deleted."
+  type        = number
+  default     = 90
 }
 
 ###############################################################################
