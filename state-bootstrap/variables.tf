@@ -104,10 +104,7 @@ variable "deploy_service_actions" {
   type        = list(string)
   default = [
     "cloudfront:*",
-    "dynamodb:*",
     "lambda:*",
     "logs:*",
-    "application-autoscaling:*",
-    "cloudwatch:*",
   ]
 }

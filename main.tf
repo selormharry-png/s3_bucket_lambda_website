@@ -292,16 +292,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "reviews" {
   depends_on = [aws_s3_bucket_versioning.reviews]
 }
 
-# The old DynamoDB table (deletion protection on) is dropped from state but
-# left in AWS so existing reviews can be copied over. Delete it by hand later.
-removed {
-  from = aws_dynamodb_table.reviews
-
-  lifecycle {
-    destroy = false
-  }
-}
-
 ###############################################################################
 # 5. Lambda function (review API) + IAM role + logs
 ###############################################################################
